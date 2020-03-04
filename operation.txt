@@ -1,0 +1,194 @@
+1.Создать и связать таблицы:(В дабораторной разные даты стоят, 
+поэтому я поставил даты такие как в результирующей таблице в лабораторной)
+Create table Department(
+d_no int not null primary key,
+d_name varchar(50) not null,
+location varchar(50) not null)
+go
+
+create table Employee(
+e_no int not null primary key,
+f_name varchar(50) not null,
+l_name varchar(50) not null,
+p_rate numeric(14,2) not null,
+date_hire date not null,
+d_no int not null)
+go
+
+Alter table Employee
+with check add constraint FK_Empl_Dapart_d_id foreign key(d_no)
+references Department (d_no)
+on update cascade 
+on delete cascade 
+go 
+
+insert into Department(d_no,d_name,location)
+values (1,'Soft','Chicago'),
+(2,'Sales','Dallas'),(3,'Administration','New-York')
+go
+
+insert into Employee(e_no,f_name,l_name,p_rate,date_hire,d_no)
+values(100100,'Ivan','Petrov',20,'2011.03.15',1),
+(100101,'Igor','Smirnov',16,'2012.01.12',1),
+(100102,'Tom','Carry',20,'2011.07.20',1),
+(100103,'Ann','Djefferson',15,'2011.09.15',2),
+(100104,'Polina','Smith',12,'2012.11.14',2),
+(100105,'Alan','Gordon',14,'2011.12.13',3),
+(100106,'Rodny','Clark',15,'2010.02.10',3)
+go
+-----------------------------------------------------------------
+2.Получить результирующую таблицу, в которой будут находиться следующие сведения: 
+имя, фамилия, почасовая оплата сотрудника, дата приема на работу, новая зарплата (new_p_rate),  
+процент увеличения зарплаты (increase). Увеличить зарплату на 20% сотрудникам, 
+которые были приняты на работу в 2011 году, на 10% - в 2012 году. 
+Остальным сотрудникам оплата не увеличивается, для них в столбце increase будет 0%
+
+Select e_no, f_name Name, l_name Surname,
+convert(varchar(12),date_hire,103) Date,
+cast(p_rate as DECIMAL(9,0))p_Rate,
+(case (select year(date_hire))
+when '2011'  then cast(p_rate*1.2 as decimal(9,1))
+when '2012' then cast(p_rate*1.1 as decimal(9,1))
+else cast(p_rate as decimal(9,1))
+end )new_p_rate,
+(case (select year(date_hire))
+when '2011'  then cast(cast(cast((p_rate*1.2*100/p_rate)-100 as decimal(9,0))as int)as varchar)+'%'
+when '2012' then cast(cast(cast((p_rate*1.1*100/p_rate)-100 as decimal(9,0))as int)as varchar)+'%'
+else cast(cast(cast((p_rate*100/p_rate)-100 as decimal(9,0))as int)as varchar)+'%'
+end )increase
+from Employee
+------------------------
+declare @new_p_rate table(
+id int not null ,
+rate numeric(14,2) not null)
+
+insert @new_p_rate select e_no,
+(select p_rate where (select year(date_hire))!='2012' and 
+(select year(date_hire))!='2011' union
+select p_rate*1.2 where (select year(date_hire))='2011' union 
+select p_rate*1.1 where (select year(date_hire))='2012' )
+from Employee
+where e_no=Employee.e_no
+
+Select e_no, f_name Name, l_name Surname, 
+cast(p_rate as DECIMAL(9,0))p_Rate,
+convert(varchar(12),date_hire,103) Date,
+rate,cast((cast((cast((rate*100/p_rate)-100 as DECIMAL(9,0)))as int))as varchar)+'%' increase
+from Employee,@new_p_rate
+where Employee.e_no=id
+------------------------------------------------------------------
+3.Сотрудникам, которые заработали на фирму больше 15000 лей за февраль 2011 года, 
+увеличить комиссионные в 1,5 раза (учебная БД).
+---------------------------------------
+Select distinct s.sp_name,sum(sa.qty*p.price) summ,s.comm,
+(case 
+when sum(sa.qty*p.price)>'15000' then comm*1.5
+else comm
+end
+) new_comm
+from Sperson s,Sale sa,Product p
+where s.sp_id=sa.sp_id and p.p_id=sa.p_id
+group by s.sp_name,s.comm
+---------------------------------------
+declare @sum table(
+id_sperso_date int not null,
+summ numeric(14,2) not null
+)
+insert @sum select s.sp_id,
+sum(sa.qty*p.price)
+from Sperson s,Sale sa,Product p
+where sa.p_id=p.p_id and s.sp_id=sa.sp_id
+group by s.sp_id,s.sp_name
+
+declare @new_comm table(
+id int not null,
+comm int not null)
+
+insert @new_comm select distinct
+s.sp_id,(Select(select comm*1.5 where sm.summ>'15000' 
+union select comm where sm.summ<='15000')
+where (select month(sa.data))= '2'
+union select comm where (select month(sa.data))!= '2')
+from Sperson s,@sum sm,Sale sa
+where s.sp_id=id_sperso_date and s.sp_id=sa.sp_id
+
+Select s.sp_name,s.comm,cm.comm new_comm,summ
+from @sum,@new_comm cm,Sperson s
+where id=id_sperso_date and s.sp_id=id
+--------------------------------------------------------------------------------
+4.Сотрудникам, которые поступили на работу в период (Сдесь поставил даты как )
+с 02.01.2000 г. по 30.12.2009 г. увеличить зарплату на 10%, .
+со 02.01.2010 г. по 30.12.2014 г. – на 5%,
+со 02.01.2015 по сегодняшний день – на 2%.
+
+
+
+
+-----------------------------
+Create table Department(
+d_no int not null primary key,
+d_name varchar(50) not null,
+location varchar(50) not null)
+go
+
+create table Employee(
+e_no int not null primary key,
+f_name varchar(50) not null,
+l_name varchar(50) not null,
+p_rate numeric(14,2) not null,
+date_hire date not null,
+d_no int not null)
+go
+
+Alter table Employee
+with check add constraint FK_Empl_Dapart_d_id foreign key(d_no)
+references Department (d_no)
+on update cascade 
+on delete cascade 
+go 
+
+insert into Department(d_no,d_name,location)
+values (1,'Soft','Chicago'),
+(2,'Sales','Dallas'),(3,'Administration','New-York')
+go
+
+insert into Employee(e_no,f_name,l_name,p_rate,date_hire,d_no)
+values(100100,'Ivan','Petrov',20,'2001.03.15',1),
+(100101,'Igor','Smirnov',16,'2012.01.12',1),
+(100102,'Tom','Carry',20,'2005.07.20',1),
+(100103,'Ann','Djefferson',15,'2011.09.15',2),
+(100104,'Polina','Smith',12,'2015.11.14',2),
+(100105,'Alan','Gordon',14,'2011.12.13',3),
+(100106,'Rodny','Clark',15,'2010.02.10',3)
+go
+
+declare @new_p_rate table(
+id int not null ,
+rate numeric(14,2) not null)
+
+declare @2000 date,
+@2009 date ,
+ @2010 date ,
+  @2014 date  ,
+  @2015 date  ,
+   @now date   
+Select @2000='2000.01.02',
+@2009='2009.12.30',
+@2010='2010.01.02',
+@2014='2014.12.30',
+@2015='2015.01.02',
+@now=getdate()
+
+insert @new_p_rate select e_no,
+(select p_rate*1.1 where date_hire>@2000 and date_hire<@2009
+union select p_rate*1.05 where date_hire>@2010 and date_hire<@2014
+union select p_rate*1.02 where date_hire>@2015 and date_hire<@now)
+from Employee
+where e_no=Employee.e_no
+
+Select e_no, f_name Name, l_name Surname, 
+cast(p_rate as DECIMAL(9,0))p_Rate,
+convert(varchar(12),date_hire,103) Date,
+rate,cast((cast((cast((rate*100/p_rate)-100 as DECIMAL(9,0)))as int))as varchar)+'%' increase
+from Employee,@new_p_rate
+where Employee.e_no=id
